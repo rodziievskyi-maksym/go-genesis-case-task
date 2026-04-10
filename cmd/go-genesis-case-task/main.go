@@ -1,20 +1,14 @@
 package main
 
 import (
-	"errors"
-	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
 	ginprometheus "github.com/zsais/go-gin-prometheus"
 )
-
-// Навмисно неекспортована функція з коментарем, що вимагає лінтер revive
-func doSomething() error {
-	return errors.New("something went wrong")
-}
 
 func main() {
 	if os.Getenv("GIN_MODE") == "release" {
@@ -41,20 +35,9 @@ func main() {
 		port = "8080"
 	}
 
-	log.Printf("Starting Gin server on port %s...", port)
+	slog.Info("Starting Gin server...")
 
 	if err := r.Run(":" + port); err != nil {
 		log.Fatalf("Failed to run server: %v", err)
 	}
-
-	// Помилка 1: Ігнорування помилки (trigger errcheck)
-	doSomething()
-
-	// Помилка 2: Марне присвоювання (trigger ineffassign)
-	x := 10
-	x = 20
-
-	// Помилка 3: Unreachable code (trigger staticcheck)
-	return
-	fmt.Println("This will never run", x)
 }
