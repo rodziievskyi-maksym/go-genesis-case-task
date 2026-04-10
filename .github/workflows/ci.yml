@@ -2,32 +2,32 @@ name: Go
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - main
+      - master
   pull_request:
-    branches: [ "main" ]
+
+permissions:
+  contents: read
 
 jobs:
-  lint:
-    name: Linting
+  golangci:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
         with:
-          go-version: '1.26'
-          cache: false
-
+          go-version: stable
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
-          version: latest
+          version: v2.11
 
   build-and-test:
     name: Build and Test
     runs-on: ubuntu-latest
-    needs: lint
+    needs: golangci
     steps:
       - uses: actions/checkout@v4
 
