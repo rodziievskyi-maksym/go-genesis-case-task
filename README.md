@@ -73,12 +73,17 @@ DB_NAME=genesis-case-task-db
 DB_PASS_CONTAINER_PATH=/run/secrets/db_pass_secret
 
 GITHUB_TOKEN=
-```env
 
-### 2. Запуск всієї інфраструктури
+```
+
+---
+
+## 2. Запуск всієї інфраструктури
 
 ```bash
 docker-compose up --build
+```
+---
 
 ## 🔍 Моніторинг та Документація
 ### Після запуску сервіси доступні за наступними адресами:
@@ -99,3 +104,4 @@ docker-compose up --build
 ```bash
 go test ./internal/usecase/... -coverprofile=cover.out
 go tool cover -func=cover.out
+```
