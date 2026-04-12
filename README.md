@@ -1,102 +1,101 @@
-# go-genesis-case-task
+# 🚀 GitHub Release Notifier
 
-GitHub Release Notifier: A Go-based service that monitors repositories and sends email alerts for new releases.
+**GitHub Release Notifier** — це сучасний мікросервіс на Go, розроблений для моніторингу оновлень у GitHub репозиторіях та автоматичного сповіщення користувачів. Проект побудований за принципами **Clean Architecture** та **SOLID**.
 
-🚀 GitHub Release Notifier
-GitHub Release Notifier — це високонавантажений мікросервіс на Go, розроблений для моніторингу оновлень у GitHub репозиторіях та автоматичного сповіщення користувачів. Проект побудований за принципами Clean Architecture з фокусом на продуктивність та надійність.
+---
 
-✨ Key Features
-Real-time Monitoring: Автоматичне сканування GitHub репозиторіїв на наявність нових тегів.
+## ✨ Ключові особливості
 
-Smart Caching: Використання Redis (Decorator Pattern) для мінімізації запитів до GitHub API.
+* **Smart Caching**: Реалізовано паттерн **Decorator** для кешування запитів до GitHub API через **Redis**, що значно економить ліміти токена.
+* **Full Observability**: Повний моніторинг стану системи через **Prometheus** (метрики Gin, Go Runtime та бізнес-показники).
+* **Rate Limit Protection**: Адаптивне керування лімітами GitHub API — сервіс автоматично "засинає" до моменту скидання ліміту.
+* **Interactive UI**: Вбудована сучасна HTML-сторінка (Tailwind CSS) для швидкої підписки.
+* **API Documentation**: Повна підтримка **Swagger (OpenAPI 3.0)** для зручного тестування ендпоінтів.
 
-Rate Limit Protection: Проактивна обробка лімітів GitHub (сервіс "засинає" до моменту скидання ліміту).
+---
 
-Clean Architecture: Чіткий поділ на шари (Domain, UseCase, Infrastructure, Delivery).
+## 🛠 Технологічний стек
 
-Твій поточний README — це хороший фундамент, але щоб він виглядав як проект Senior рівня, нам треба додати трохи "структурного лиску": чіткі інструкції з тестування, Swagger та деталі про архітектурні рішення (наприклад, твій Redis Decorator).
+* **Мова**: Go 1.26 (Gin Gonic framework)
+* **База даних**: PostgreSQL 17 (pgx pool)
+* **Кешування**: Redis 7
+* **Моніторинг**: Prometheus
+* **Воркери**: `gocron/v2` для планування сканування.
+* **Тестування**: `testify` (Table-driven tests, Mocking).
 
-🚀 GitHub Release Notifier
-GitHub Release Notifier — це мікросервіс на Go, розроблений для моніторингу оновлень у GitHub репозиторіях та автоматичного сповіщення користувачів. Проект побудований за принципами Clean Architecture з фокусом на продуктивність та надійність.
+---
 
-✨ Key Features
-Real-time Monitoring: Автоматичне сканування GitHub репозиторіїв на наявність нових тегів.
+## 📂 Структура проекту
 
-Smart Caching: Використання Redis (Decorator Pattern) для мінімізації запитів до GitHub API.
+Проект організований згідно з принципами чистої архітектури:
 
-Rate Limit Protection: Проактивна обробка лімітів GitHub (сервіс "засинає" до моменту скидання ліміту).
+* `cmd/` — точка входу, ініціалізація та Dependency Injection.
+* `internal/domain/` — бізнес-сутності та інтерфейси.
+* `internal/usecase/` — ядро бізнес-логіки (покрито тестами на **82.6%**).
+* `internal/infrastructure/` — зовнішні інтеграції (DB, GitHub API з Redis Decorator, Email).
+* `internal/delivery/` — HTTP хендлери та Middleware (Auth, Prometheus).
+* `web/` — фронтенд частина (HTML/JS).
 
-Clean Architecture: Чіткий поділ на шари (Domain, UseCase, Infrastructure, Delivery).
+---
 
-Full Observability: Метрики Prometheus та структуроване логування через slog.
+## 🚀 Швидкий запуск (Docker)
 
-🛠 Technical Stack
-Language: Go 1.26
+### 1. Налаштування середовища
+Створіть файл `.env` у корені проекту (використовуйте `.env.example` як шаблон):
 
-Framework: Gin Gonic
+```env
+ENV=development
+HOST=0.0.0.0
+PORT=8080
+SCANNER_INTERVAL=5m
+API_KEY=genesis-secret-key
 
-Database: PostgreSQL 17 (pgx pool)
-
-Caching: Redis 7
-
-Auth: API Key Middleware
-
-Monitoring: Prometheus
-
-Docs: Swagger (OpenAPI)
-
-🚀 Quick Start
-1. Environment Configuration
-Створіть .env файл у корені проекту:
-
-Code snippet
-SERVER_PORT=8080
-DB_DSN=postgres://dev:pass@db:5432/genesis_task?sslmode=disable
-GITHUB_TOKEN=your_token_here
-SCANNER_INTERVAL=10m
-API_KEY=your_secret_api_key
+#SMTP
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=
+SMTP_FROM=noreply@genesis-case-task.com
 
 # Redis
 REDIS_HOST=redis
 REDIS_PORT=6379
+REDIS_PASS=
+REDIS_DB=0
 REDIS_CACHE_TTL=10m
 
-# SMTP
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your_email@gmail.com
-SMTP_PASS=your_app_password
+#Database
+POSTGRES_DSN=postgresql://dev:devpassv2@db:5432/genesis-case-task-db?sslmode=disable
 
-2. Execution via Docker
-Запустіть весь стек однією командою:
+# Database Configuration
+DB_USER=dev
+DB_NAME=genesis-case-task-db
+DB_PASS_CONTAINER_PATH=/run/secrets/db_pass_secret
 
+GITHUB_TOKEN=
+```env
+
+### 2. Запуск всієї інфраструктури
+
+```bash
 docker-compose up --build
 
-📖 API Documentation
-Після запуску документація Swagger доступна за адресою:
-👉 http://localhost:8080/swagger/index.html
+## 🔍 Моніторинг та Документація
+### Після запуску сервіси доступні за наступними адресами:
 
-Note: Всі запити (крім Swagger) потребують заголовок X-API-KEY: genesis-secret-key
+* 🏠 Головна сторінка: http://localhost:8080/
 
-🧪 Testing
-Проект має високе покриття Unit-тестами (Table-driven tests) для бізнес-логіки.
+* 📜 Swagger UI: http://localhost:8080/swagger/index.html
 
-Запуск усіх тестів:
+* 📈 Prometheus UI: http://localhost:9090
 
-go test ./... -v
+* 📊 Metrics Endpoint: http://localhost:8080/metrics
 
-go test -coverprofile=cover.out ./internal/usecase/...
+## 🧪 Тестування
+### Проект використовує ідіоматичні для Go Table-driven tests.
+
+## Запуск тестів з перевіркою покриття:
+
+```bash
+go test ./internal/usecase/... -coverprofile=cover.out
 go tool cover -func=cover.out
-
-📂 Project Structure
-cmd/ — Точка входу (ініціалізація DI контейтера).
-
-internal/domain/ — Бізнес-сутності та інтерфейси.
-
-internal/usecase/ — Реалізація бізнес-логіки (табл-тести тут).
-
-internal/infrastructure/ — Зовнішні сервіси (GitHub API з Redis Decorator, DB, Email).
-
-internal/worker/ — Scanner (фонoві задачі).
-
-migrations/ — SQL файли для ініціалізації БД (Postgres /docker-entrypoint-initdb.d).
