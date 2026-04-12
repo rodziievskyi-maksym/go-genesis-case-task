@@ -1,4 +1,4 @@
-package usecase
+package usecase_test
 
 import (
 	"context"
@@ -9,8 +9,10 @@ import (
 	"github.com/rodziievskyi-maksym/go-genesis-case-task/internal/domain"
 	"github.com/rodziievskyi-maksym/go-genesis-case-task/internal/infrastructure/github"
 	"github.com/rodziievskyi-maksym/go-genesis-case-task/internal/infrastructure/repository"
+	"github.com/rodziievskyi-maksym/go-genesis-case-task/internal/usecase"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSubscriptionUseCase_Subscribe(t *testing.T) {
@@ -62,7 +64,7 @@ func TestSubscriptionUseCase_Subscribe(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			mockRepo := new(MockRepository)
 			mockGH := new(MockGitHub)
-			uc := NewSubscriptionUseCase(mockRepo, mockGH)
+			uc := usecase.NewSubscriptionUseCase(mockRepo, mockGH)
 			ctx := context.Background()
 
 			if tc.repoPath != "" {
@@ -78,10 +80,10 @@ func TestSubscriptionUseCase_Subscribe(t *testing.T) {
 			res, err := uc.Subscribe(ctx, tc.email, tc.repoPath)
 
 			if tc.expectedErr != nil {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.expectedErr.Error())
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tc.expectTag, res.LastSeenTag)
 			}
 		})
@@ -115,7 +117,7 @@ func TestSubscriptionUseCase_Unsubscribe(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			mockRepo := new(MockRepository)
-			uc := NewSubscriptionUseCase(mockRepo, nil)
+			uc := usecase.NewSubscriptionUseCase(mockRepo, nil)
 
 			mockRepo.On("DeactivateSubscription", mock.Anything, tc.email, tc.repo).
 				Return(tc.mockErr)
@@ -170,7 +172,7 @@ func TestSubscriptionUseCase_GetSubscriptions(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			mockRepo := new(MockRepository)
-			uc := NewSubscriptionUseCase(mockRepo, nil)
+			uc := usecase.NewSubscriptionUseCase(mockRepo, nil)
 
 			mockRepo.On("GetSubscriptionsByEmail", mock.Anything, tc.email).
 				Return(tc.mockReturn, tc.mockErr)
@@ -180,7 +182,7 @@ func TestSubscriptionUseCase_GetSubscriptions(t *testing.T) {
 			if tc.mockErr != nil {
 				assert.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Len(t, res, tc.expectedLen)
 				assert.NotNil(t, res)
 			}
