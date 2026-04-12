@@ -2,48 +2,101 @@
 
 GitHub Release Notifier: A Go-based service that monitors repositories and sends email alerts for new releases.
 
-This microservice is built with Go to monitor new releases in GitHub repositories and automatically notify users via email.
-It follows Clean Architecture principles to ensure maintainability, scalability, and ease of testing.
+🚀 GitHub Release Notifier
+GitHub Release Notifier — це високонавантажений мікросервіс на Go, розроблений для моніторингу оновлень у GitHub репозиторіях та автоматичного сповіщення користувачів. Проект побудований за принципами Clean Architecture з фокусом на продуктивність та надійність.
 
-Technical Stack
-The project utilizes Go 1.26 as the primary language and the Gin Gonic framework for high-performance HTTP routing.
-PostgreSQL serves as the persistent storage, managed via the pgx connection pool for optimal concurrency.
-Monitoring is facilitated by Prometheus, while background task scheduling is managed through gocron/v2.
+✨ Key Features
+Real-time Monitoring: Автоматичне сканування GitHub репозиторіїв на наявність нових тегів.
+
+Smart Caching: Використання Redis (Decorator Pattern) для мінімізації запитів до GitHub API.
+
+Rate Limit Protection: Проактивна обробка лімітів GitHub (сервіс "засинає" до моменту скидання ліміту).
+
+Clean Architecture: Чіткий поділ на шари (Domain, UseCase, Infrastructure, Delivery).
+
+Твій поточний README — це хороший фундамент, але щоб він виглядав як проект Senior рівня, нам треба додати трохи "структурного лиску": чіткі інструкції з тестування, Swagger та деталі про архітектурні рішення (наприклад, твій Redis Decorator).
+
+🚀 GitHub Release Notifier
+GitHub Release Notifier — це мікросервіс на Go, розроблений для моніторингу оновлень у GitHub репозиторіях та автоматичного сповіщення користувачів. Проект побудований за принципами Clean Architecture з фокусом на продуктивність та надійність.
+
+✨ Key Features
+Real-time Monitoring: Автоматичне сканування GitHub репозиторіїв на наявність нових тегів.
+
+Smart Caching: Використання Redis (Decorator Pattern) для мінімізації запитів до GitHub API.
+
+Rate Limit Protection: Проактивна обробка лімітів GitHub (сервіс "засинає" до моменту скидання ліміту).
+
+Clean Architecture: Чіткий поділ на шари (Domain, UseCase, Infrastructure, Delivery).
+
+Full Observability: Метрики Prometheus та структуроване логування через slog.
+
+🛠 Technical Stack
+Language: Go 1.26
+
+Framework: Gin Gonic
+
+Database: PostgreSQL 17 (pgx pool)
+
+Caching: Redis 7
+
+Auth: API Key Middleware
+
+Monitoring: Prometheus
+
+Docs: Swagger (OpenAPI)
+
+🚀 Quick Start
+1. Environment Configuration
+Створіть .env файл у корені проекту:
+
+Code snippet
+SERVER_PORT=8080
+DB_DSN=postgres://dev:pass@db:5432/genesis_task?sslmode=disable
+GITHUB_TOKEN=your_token_here
+SCANNER_INTERVAL=10m
+API_KEY=your_secret_api_key
+
+# Redis
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_CACHE_TTL=10m
+
+# SMTP
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_app_password
+
+2. Execution via Docker
+Запустіть весь стек однією командою:
+
+docker-compose up --build
+
+📖 API Documentation
+Після запуску документація Swagger доступна за адресою:
+👉 http://localhost:8080/swagger/index.html
+
+Note: Всі запити (крім Swagger) потребують заголовок X-API-KEY: genesis-secret-key
+
+🧪 Testing
+Проект має високе покриття Unit-тестами (Table-driven tests) для бізнес-логіки.
+
+Запуск усіх тестів:
+
+go test ./... -v
+
+go test -coverprofile=cover.out ./internal/usecase/...
+go tool cover -func=cover.out
 
 📂 Project Structure
+cmd/ — Точка входу (ініціалізація DI контейтера).
 
-/cmd — entry point
+internal/domain/ — Бізнес-сутності та інтерфейси.
 
-/internal/domain — domain models
+internal/usecase/ — Реалізація бізнес-логіки (табл-тести тут).
 
-/internal/usecase — business logic
+internal/infrastructure/ — Зовнішні сервіси (GitHub API з Redis Decorator, DB, Email).
 
-/internal/infrastructure — external infrastructure (DB, GitHub, Email).
+internal/worker/ — Scanner (фонoві задачі).
 
-/internal/worker — background tasks ()Scanner).
-
-/pkg - database clients
-
-
-Quick Start
-Environment Configuration
-Create a .env file in the project root based on the provided template ~/.env.example.
-
-You must define the server port, the PostgreSQL DSN for database connectivity, and your GitHub personal access token.
-The scanner interval should be specified using Go duration format, such as 5m or 1h.
-For notifications, configure the SMTP host, port, and credentials, including a Google App Password if using Gmail.
-
-Execution via Docker
-Deploy the entire stack by running
-
-docker-compose up --build.
-
-This command initializes the database, applies migrations, and starts the API service.
-The application will be accessible at http://localhost:8080.
-
-GitHub Rate Limit Handling
-The service actively manages communication with the GitHub API to prevent token blocking.
-If the scanner encounters a rate limit error, it extracts the reset timestamp from the API response headers.
-An internal safety flag is then set to skip subsequent scanning cycles until the reset time has passed.
-This proactive approach saves system resources and ensures the service remains a "good citizen" within the GitHub ecosystem.
-
+migrations/ — SQL файли для ініціалізації БД (Postgres /docker-entrypoint-initdb.d).
