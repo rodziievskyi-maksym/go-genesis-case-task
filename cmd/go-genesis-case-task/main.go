@@ -16,6 +16,7 @@ import (
 	"github.com/rodziievskyi-maksym/go-genesis-case-task/internal/config"
 	"github.com/rodziievskyi-maksym/go-genesis-case-task/internal/delivery/handler"
 	"github.com/rodziievskyi-maksym/go-genesis-case-task/internal/infrastructure/cache"
+	"github.com/rodziievskyi-maksym/go-genesis-case-task/internal/infrastructure/email"
 	"github.com/rodziievskyi-maksym/go-genesis-case-task/internal/infrastructure/github"
 	"github.com/rodziievskyi-maksym/go-genesis-case-task/internal/infrastructure/repository"
 	"github.com/rodziievskyi-maksym/go-genesis-case-task/internal/infrastructure/server"
@@ -42,25 +43,26 @@ func run() error {
 
 	validation := validator.New()
 
-	if err := config.NewConfig(validation); err != nil {
+	cfg, err := config.Load(validation)
+	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	client, err := postgres.NewPostgreClient(initCtx, config.Cfg().PostgresDSN)
+	client, err := postgres.NewPostgreClient(initCtx, cfg.PostgresDSN)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 	defer client.Close()
 
-	redisClient, err := redis.NewRedisClient(initCtx, config.GetRedisAddress(), config.Cfg().RedisPass)
+	redisClient, err := redis.NewRedisClient(initCtx, cfg.RedisAddress(), cfg.RedisPass)
 	if err != nil {
 		return fmt.Errorf("failed to connect to redis: %w", err)
 	}
 	defer redisClient.Close()
 
-	tagCache := cache.NewTagCache(redisClient.Client, config.Cfg().RedisCacheTTL)
+	tagCache := cache.NewTagCache(redisClient.Client, cfg.RedisCacheTTL)
 
-	baseGhClient := github.NewClient(config.Cfg().GitHubToken)
+	baseGhClient := github.NewClient(cfg.GitHubToken)
 	cachedGhClient := github.NewCachedGitHubProvider(baseGhClient, tagCache)
 
 	subRepo := repository.NewSubscriptionRepository(client)
@@ -70,7 +72,9 @@ func run() error {
 	appCtx, appCancel := context.WithCancel(context.Background())
 	defer appCancel()
 
-	scanner, err := worker.NewScanner(subRepo, cachedGhClient)
+	emailProvider := email.NewSMTPProvider(cfg)
+
+	scanner, err := worker.NewScanner(subRepo, cachedGhClient, emailProvider, cfg.ScannerInterval)
 	if err != nil {
 		return fmt.Errorf("failed to create scanner: %w", err)
 	}
@@ -81,10 +85,10 @@ func run() error {
 		}
 	}()
 
-	srv := server.NewHTTPServer(subHandler)
+	srv := server.NewHTTPServer(subHandler, cfg)
 
 	go func() {
-		slog.Info("Starting HTTP server", "port", config.Cfg().Port)
+		slog.Info("Starting HTTP server", "port", cfg.Port)
 
 		if err := srv.Run(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("Server Run error: %v", err)

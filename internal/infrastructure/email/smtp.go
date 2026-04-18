@@ -15,13 +15,13 @@ type SMTPProvider struct {
 	from     string
 }
 
-func NewSMTPProvider() *SMTPProvider {
+func NewSMTPProvider(cfg *config.Config) *SMTPProvider {
 	return &SMTPProvider{
-		host:     config.Cfg().SMTPHost,
-		port:     config.Cfg().SMTPPort,
-		username: config.Cfg().SMTPUser,
-		password: config.Cfg().SMTPPass,
-		from:     config.Cfg().SMTPFrom,
+		host:     cfg.SMTPHost,
+		port:     cfg.SMTPPort,
+		username: cfg.SMTPUser,
+		password: cfg.SMTPPass,
+		from:     cfg.SMTPFrom,
 	}
 }
 

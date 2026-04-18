@@ -24,11 +24,12 @@ var testToken string
 func TestMain(m *testing.M) {
 	v := validator.New()
 
-	if err := config.NewConfig(v, "../../../.env"); err != nil {
+	cfg, err := config.Load(v, "../../../.env")
+	if err != nil {
 		log.Fatal(err)
 	}
 
-	testToken = config.Cfg().GitHubToken
+	testToken = cfg.GitHubToken
 
 	os.Exit(m.Run())
 }

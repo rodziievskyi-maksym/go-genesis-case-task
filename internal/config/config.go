@@ -3,22 +3,14 @@ package config
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"reflect"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/creasty/defaults"
 	"github.com/go-playground/validator/v10"
 	"github.com/joho/godotenv"
-)
-
-var (
-	instance *Config
-	once     sync.Once
-	errInit  error
 )
 
 type Config struct {
@@ -52,8 +44,9 @@ func loadFromEnv(cfg *Config) error {
 	typ := value.Type()
 	errs := make([]error, 0)
 
-	for i := 0; i < typ.NumField(); i++ {
+	for i := range typ.NumField() {
 		field := typ.Field(i)
+
 		envKey := field.Tag.Get("env")
 		if envKey == "" {
 			continue
@@ -97,68 +90,50 @@ func setFieldValue(field reflect.Value, raw string) error {
 		}
 
 		field.SetInt(parsed)
-	default:
+	case reflect.Invalid, reflect.Bool, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Uintptr, reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128, reflect.Array,
+		reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice, reflect.Struct,
+		reflect.UnsafePointer:
 		return fmt.Errorf("unsupported field type %s", fieldType)
 	}
 
 	return nil
 }
 
-func NewConfig(validate *validator.Validate, envPath ...string) error {
+func Load(validate *validator.Validate, envPath ...string) (*Config, error) {
 	if validate == nil {
-		return errors.New("validator is nil")
+		return nil, errors.New("validator is nil")
 	}
 
-	once.Do(func() {
-		slog.Info("Initializing configuration...")
-
-		if err := godotenv.Load(envPath...); err != nil {
-			errInit = errors.Join(errors.New("failed to load environment variables from .env file"), err)
-			return
-		}
-
-		cfg := &Config{}
-
-		if err := defaults.Set(cfg); err != nil {
-			errInit = errors.Join(errors.New("failed to apply default configuration values"), err)
-			return
-		}
-
-		if err := loadFromEnv(cfg); err != nil {
-			errInit = errors.Join(errors.New("failed to parse environment variables"), err)
-			return
-		}
-
-		if err := validate.Struct(cfg); err != nil {
-			errInit = errors.Join(errors.New("configuration validation failed"), err)
-			return
-		}
-
-		instance = cfg
-		errInit = nil
-
-		slog.Info("Configuration initialized")
-	})
-
-	if errInit != nil {
-		return errInit
+	if err := godotenv.Load(envPath...); err != nil {
+		return nil, errors.Join(errors.New("failed to load environment variables from .env file"), err)
 	}
 
-	return nil
+	cfg := &Config{}
+
+	if err := defaults.Set(cfg); err != nil {
+		return nil, errors.Join(errors.New("failed to apply default configuration values"), err)
+	}
+
+	if err := loadFromEnv(cfg); err != nil {
+		return nil, errors.Join(errors.New("failed to parse environment variables"), err)
+	}
+
+	if err := validate.Struct(cfg); err != nil {
+		return nil, errors.Join(errors.New("configuration validation failed"), err)
+	}
+
+	return cfg, nil
 }
 
-func Cfg() *Config {
-	return instance
+func (c *Config) IsProduction() bool {
+	return c.Env == "production"
 }
 
-func IsProduction() bool {
-	return instance.Env == "production"
+func (c *Config) ServerAddress() string {
+	return fmt.Sprintf("%s:%s", c.Host, c.Port)
 }
 
-func GetServerAddress() string {
-	return fmt.Sprintf("%s:%s", instance.Host, instance.Port)
-}
-
-func GetRedisAddress() string {
-	return fmt.Sprintf("%s:%s", instance.RedisHost, instance.RedisPort)
+func (c *Config) RedisAddress() string {
+	return fmt.Sprintf("%s:%s", c.RedisHost, c.RedisPort)
 }

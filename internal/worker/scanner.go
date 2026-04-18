@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
-	"github.com/rodziievskyi-maksym/go-genesis-case-task/internal/config"
 	"github.com/rodziievskyi-maksym/go-genesis-case-task/internal/infrastructure/email"
 	"github.com/rodziievskyi-maksym/go-genesis-case-task/internal/infrastructure/github"
 	"github.com/rodziievskyi-maksym/go-genesis-case-task/internal/infrastructure/repository"
@@ -20,12 +19,18 @@ type Scanner struct {
 	github        github.Provider
 	emailProvider email.Provider
 	scheduler     gocron.Scheduler
+	interval      time.Duration
 
 	rateLimitUntil time.Time
 	mu             sync.RWMutex
 }
 
-func NewScanner(repo repository.SubscriptionRepositoryContract, gh github.Provider) (*Scanner, error) {
+func NewScanner(
+	repo repository.SubscriptionRepositoryContract,
+	gh github.Provider,
+	emailProvider email.Provider,
+	interval time.Duration,
+) (*Scanner, error) {
 	scheduler, err := gocron.NewScheduler()
 	if err != nil {
 		return nil, errors.Join(errors.New("failed to create scheduler"), err)
@@ -35,13 +40,14 @@ func NewScanner(repo repository.SubscriptionRepositoryContract, gh github.Provid
 		repository:    repo,
 		github:        gh,
 		scheduler:     scheduler,
-		emailProvider: email.NewSMTPProvider(),
+		emailProvider: emailProvider,
+		interval:      interval,
 	}, nil
 }
 
 func (s *Scanner) Run(ctx context.Context) error {
 	_, err := s.scheduler.NewJob(
-		gocron.DurationJob(config.Cfg().ScannerInterval),
+		gocron.DurationJob(s.interval),
 		gocron.NewTask(s.checkUpdates, ctx),
 		gocron.WithSingletonMode(gocron.LimitModeReschedule),
 		gocron.JobOption(gocron.WithStartImmediately()),

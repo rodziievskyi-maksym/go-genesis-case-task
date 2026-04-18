@@ -1,21 +1,15 @@
-package config
+package config_test
 
 import (
 	"os"
 	"path/filepath"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/rodziievskyi-maksym/go-genesis-case-task/internal/config"
 	"github.com/stretchr/testify/require"
 )
-
-func resetConfigState() {
-	instance = nil
-	errInit = nil
-	once = sync.Once{}
-}
 
 func createTempEnvFile(t *testing.T) string {
 	t.Helper()
@@ -39,17 +33,14 @@ func setRequiredEnv(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "ghp_test")
 }
 
-func TestNewConfig_AppliesDefaultsAndOverrides(t *testing.T) {
-	resetConfigState()
+func TestLoad_AppliesDefaultsAndOverrides(t *testing.T) {
 	setRequiredEnv(t)
 	t.Setenv("HOST", "127.0.0.1")
 	t.Setenv("REDIS_DB", "3")
 	t.Setenv("REDIS_CACHE_TTL", "30m")
 
-	err := NewConfig(validator.New(), createTempEnvFile(t))
+	cfg, err := config.Load(validator.New(), createTempEnvFile(t))
 	require.NoError(t, err)
-
-	cfg := Cfg()
 	require.NotNil(t, cfg)
 	require.Equal(t, "127.0.0.1", cfg.Host)
 	require.Equal(t, "8080", cfg.Port)
@@ -60,23 +51,21 @@ func TestNewConfig_AppliesDefaultsAndOverrides(t *testing.T) {
 	require.Equal(t, "password", cfg.SMTPPass)
 }
 
-func TestNewConfig_ReturnsErrorOnInvalidDuration(t *testing.T) {
-	resetConfigState()
+func TestLoad_ReturnsErrorOnInvalidDuration(t *testing.T) {
 	setRequiredEnv(t)
 	t.Setenv("SCANNER_INTERVAL", "not-a-duration")
 
-	err := NewConfig(validator.New(), createTempEnvFile(t))
+	_, err := config.Load(validator.New(), createTempEnvFile(t))
 	require.Error(t, err)
 	require.ErrorContains(t, err, "failed to parse environment variables")
 	require.ErrorContains(t, err, "SCANNER_INTERVAL")
 }
 
-func TestNewConfig_ReturnsErrorOnInvalidInteger(t *testing.T) {
-	resetConfigState()
+func TestLoad_ReturnsErrorOnInvalidInteger(t *testing.T) {
 	setRequiredEnv(t)
 	t.Setenv("REDIS_DB", "abc")
 
-	err := NewConfig(validator.New(), createTempEnvFile(t))
+	_, err := config.Load(validator.New(), createTempEnvFile(t))
 	require.Error(t, err)
 	require.ErrorContains(t, err, "failed to parse environment variables")
 	require.ErrorContains(t, err, "REDIS_DB")

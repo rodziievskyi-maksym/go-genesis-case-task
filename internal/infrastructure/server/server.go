@@ -29,8 +29,8 @@ type Server struct {
 // @description     API Server for monitoring GitHub releases and notifying users.
 // @host            localhost:8080
 // @BasePath        /
-func NewHTTPServer(sh *handler.SubscriptionHandler) *Server {
-	if config.IsProduction() {
+func NewHTTPServer(sh *handler.SubscriptionHandler, cfg *config.Config) *Server {
+	if cfg.IsProduction() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
@@ -48,13 +48,13 @@ func NewHTTPServer(sh *handler.SubscriptionHandler) *Server {
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 
-	api := router.Group("/api/v1").Use(middleware.APIKeyAuth(config.Cfg().APIKey))
+	api := router.Group("/api/v1").Use(middleware.APIKeyAuth(cfg.APIKey))
 	api.POST("/subscribe", sh.Subscribe)
 	api.DELETE("/unsubscribe", sh.Unsubscribe)
 	api.GET("/subscriptions", sh.GetSubscriptions)
 
 	httpServer := &http.Server{
-		Addr:              config.GetServerAddress(),
+		Addr:              cfg.ServerAddress(),
 		Handler:           router,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
