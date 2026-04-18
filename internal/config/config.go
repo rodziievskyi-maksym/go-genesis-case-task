@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"reflect"
 	"strconv"
 	"sync"
 	"time"
@@ -36,7 +37,7 @@ type Config struct {
 	SMTPHost string `env:"SMTP_HOST" validate:"required"`
 	SMTPPort string `env:"SMTP_PORT" validate:"required"`
 	SMTPUser string `env:"SMTP_USER" validate:"required"`
-	SMTPPass string `env:"SMTP_PASSW" validate:"required"`
+	SMTPPass string `env:"SMTP_PASS" validate:"required"`
 	SMTPFrom string `env:"SMTP_FROM"`
 
 	PostgresDSN string `env:"POSTGRES_DSN" validate:"required"`
@@ -44,16 +45,70 @@ type Config struct {
 	GitHubToken string `env:"GITHUB_TOKEN" validate:"required"`
 }
 
-func parseTimeDuration(value string) time.Duration {
-	duration, err := time.ParseDuration(value)
-	if err != nil {
-		panic(err)
+var durationType = reflect.TypeOf(time.Duration(0))
+
+func loadFromEnv(cfg *Config) error {
+	value := reflect.ValueOf(cfg).Elem()
+	typ := value.Type()
+	errs := make([]error, 0)
+
+	for i := 0; i < typ.NumField(); i++ {
+		field := typ.Field(i)
+		envKey := field.Tag.Get("env")
+		if envKey == "" {
+			continue
+		}
+
+		raw, exists := os.LookupEnv(envKey)
+		// Keep defaults when env var is empty.
+		if !exists || raw == "" {
+			continue
+		}
+
+		if err := setFieldValue(value.Field(i), raw); err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", envKey, err))
+		}
 	}
 
-	return duration
+	return errors.Join(errs...)
 }
 
-func NewConfig(validator *validator.Validate, envPath ...string) error {
+func setFieldValue(field reflect.Value, raw string) error {
+	fieldType := field.Type()
+
+	if fieldType == durationType {
+		duration, err := time.ParseDuration(raw)
+		if err != nil {
+			return fmt.Errorf("invalid duration: %w", err)
+		}
+
+		field.SetInt(int64(duration))
+
+		return nil
+	}
+
+	switch field.Kind() {
+	case reflect.String:
+		field.SetString(raw)
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		parsed, err := strconv.ParseInt(raw, 10, fieldType.Bits())
+		if err != nil {
+			return fmt.Errorf("invalid integer: %w", err)
+		}
+
+		field.SetInt(parsed)
+	default:
+		return fmt.Errorf("unsupported field type %s", fieldType)
+	}
+
+	return nil
+}
+
+func NewConfig(validate *validator.Validate, envPath ...string) error {
+	if validate == nil {
+		return errors.New("validator is nil")
+	}
+
 	once.Do(func() {
 		slog.Info("Initializing configuration...")
 
@@ -62,38 +117,19 @@ func NewConfig(validator *validator.Validate, envPath ...string) error {
 			return
 		}
 
-		redisDB, _ := strconv.Atoi(os.Getenv("REDIS_DB"))
-
-		cfg := &Config{
-			Host:            os.Getenv("HOST"),
-			Port:            os.Getenv("PORT"),
-			Env:             os.Getenv("ENV"),
-			ScannerInterval: parseTimeDuration(os.Getenv("SCANNER_INTERVAL")),
-			APIKey:          os.Getenv("API_KEY"),
-
-			RedisHost:     os.Getenv("REDIS_HOST"),
-			RedisPort:     os.Getenv("REDIS_PORT"),
-			RedisPass:     os.Getenv("REDIS_PASS"),
-			RedisDB:       redisDB,
-			RedisCacheTTL: parseTimeDuration(os.Getenv("REDIS_CACHE_TTL")),
-
-			SMTPHost: os.Getenv("SMTP_HOST"),
-			SMTPPort: os.Getenv("SMTP_PORT"),
-			SMTPUser: os.Getenv("SMTP_USER"),
-			SMTPPass: os.Getenv("SMTP_PASS"),
-			SMTPFrom: os.Getenv("SMTP_FROM"),
-
-			PostgresDSN: os.Getenv("POSTGRES_DSN"),
-
-			GitHubToken: os.Getenv("GITHUB_TOKEN"),
-		}
+		cfg := &Config{}
 
 		if err := defaults.Set(cfg); err != nil {
 			errInit = errors.Join(errors.New("failed to apply default configuration values"), err)
 			return
 		}
 
-		if err := validator.Struct(cfg); err != nil {
+		if err := loadFromEnv(cfg); err != nil {
+			errInit = errors.Join(errors.New("failed to parse environment variables"), err)
+			return
+		}
+
+		if err := validate.Struct(cfg); err != nil {
 			errInit = errors.Join(errors.New("configuration validation failed"), err)
 			return
 		}
